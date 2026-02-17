@@ -2,13 +2,13 @@ use std::iter::Peekable;
 
 use crate::lexer::Token;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
     Var(String),
     Num(i32),
     BinOp(Box<Expr>, Op, Box<Expr>),
 }
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Op {
     Add,
     Sub,
@@ -118,6 +118,42 @@ impl Parser {
             tok
         } else {
             panic!("unexpected behaviour");
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_expr() {
+        use crate::lexer::Lexer;
+        let mut lexer = Lexer::new("1 + 2 * 3");
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens);
+        let expr = parser.parse_expr();
+        match expr {
+            Expr::BinOp(left, Op::Add, right) => {
+                match *left {
+                    Expr::Num(1) => {}
+                    _ => panic!("expected Num(1)"),
+                }
+                match *right {
+                    Expr::BinOp(inner_left, Op::Mul, inner_right) => {
+                        match *inner_left {
+                            Expr::Num(2) => {}
+                            _ => panic!("expected Num(2)"),
+                        }
+                        match *inner_right {
+                            Expr::Num(3) => {}
+                            _ => panic!("expected Num(3)"),
+                        }
+                    }
+                    _ => panic!("expected BinOp with Mul"),
+                }
+            }
+            _ => panic!("expected BinOp with Add"),
         }
     }
 }

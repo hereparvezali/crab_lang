@@ -1,6 +1,6 @@
 use std::{iter::Peekable, str::Chars};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Token {
     Let,
     Exit,
@@ -92,5 +92,51 @@ impl<'a> Lexer<'a> {
             }
         }
         tokens
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_lexer() {
+        let source = "let x = 5; let y = x+(4+2)/2; let z = x+y; exit z + 2;";
+        let tokens = Lexer::new(source).tokenize();
+        assert_eq!(
+            tokens,
+            vec![
+                Token::Let,
+                Token::Ident("x".to_string()),
+                Token::Equal,
+                Token::Number(5),
+                Token::Semicolon,
+                Token::Let,
+                Token::Ident("y".to_string()),
+                Token::Equal,
+                Token::Ident("x".to_string()),
+                Token::Plus,
+                Token::LParen,
+                Token::Number(4),
+                Token::Plus,
+                Token::Number(2),
+                Token::RParen,
+                Token::Slash,
+                Token::Number(2),
+                Token::Semicolon,
+                Token::Let,
+                Token::Ident("z".to_string()),
+                Token::Equal,
+                Token::Ident("x".to_string()),
+                Token::Plus,
+                Token::Ident("y".to_string()),
+                Token::Semicolon,
+                Token::Exit,
+                Token::Ident("z".to_string()),
+                Token::Plus,
+                Token::Number(2),
+                Token::Semicolon,
+            ]
+        );
     }
 }
