@@ -11,21 +11,12 @@ _start:
 
     ; exit
     mov rax, 5
+    neg rax
     push rax
     mov rax, 5
-    push rax
-    mov rax, 5
+    neg rax
     pop rbx
-    cqo
-    idiv rbx
-    push rax
-    mov rax, 50
-    pop rbx
-    cqo
-    idiv rbx
-    pop rbx
-    cqo
-    idiv rbx
+    imul rax, rbx
     mov rdi, rax
     mov rax, 60
     syscall

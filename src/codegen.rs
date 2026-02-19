@@ -151,6 +151,17 @@ impl CodeGen {
                     }
                 }
             }
+            Expr::UnaryOp(op, expr) => {
+                self.gen_expr(expr);
+                match op {
+                    Op::Sub => {
+                        self.emit_indent("neg rax");
+                    }
+                    _ => {
+                        println!("Unary Operator error");
+                    }
+                }
+            }
         }
     }
 }
@@ -169,7 +180,7 @@ mod tests {
 
     #[test]
     fn test_simple_exit() {
-        let source = "exit 42;";
+        let source = "exit(42);";
         let tokens = Lexer::new(source).tokenize();
         let stmts = Parser::new(tokens).parse();
         let asm = CodeGen::new().generate(&stmts);
@@ -182,7 +193,7 @@ mod tests {
 
     #[test]
     fn test_let_and_exit() {
-        let source = "let x = 10; exit x;";
+        let source = "let x = 10; exit(x);";
         let tokens = Lexer::new(source).tokenize();
         let stmts = Parser::new(tokens).parse();
         let asm = CodeGen::new().generate(&stmts);
@@ -194,7 +205,7 @@ mod tests {
 
     #[test]
     fn test_arithmetic() {
-        let source = "exit 2 + 3 * 4;";
+        let source = "exit(2 + 3 * 4);";
         let tokens = Lexer::new(source).tokenize();
         let stmts = Parser::new(tokens).parse();
         let asm = CodeGen::new().generate(&stmts);

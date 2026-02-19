@@ -7,6 +7,7 @@ pub enum Expr {
     Var(String),
     Num(i32),
     BinOp(Box<Expr>, Op, Box<Expr>),
+    UnaryOp(Op, Box<Expr>),
 }
 #[derive(Debug, Clone, PartialEq)]
 pub enum Op {
@@ -61,7 +62,9 @@ impl Parser {
                 }
                 Token::Exit => {
                     self.tokens.next();
+                    self.expect(Token::LParen);
                     let expr = self.parse_expr();
+                    self.expect(Token::RParen);
                     self.expect(Token::Semicolon);
                     stmts.push(Stmt::Exit(expr));
                 }
@@ -90,7 +93,7 @@ impl Parser {
         left
     }
     fn parse_mul(&mut self) -> Expr {
-        let mut left = self.parse_primary();
+        let mut left = self.parse_unary();
         while let Some(t @ (Token::Asterisk | Token::Slash)) = self.tokens.peek().cloned() {
             let op = match t {
                 Token::Asterisk => Op::Mul,
@@ -98,10 +101,29 @@ impl Parser {
                 _ => unreachable!(),
             };
             self.tokens.next();
-            let right = self.parse_primary();
+            let right = self.parse_unary();
             left = Expr::BinOp(Box::new(left), op, Box::new(right));
         }
         left
+    }
+    fn parse_unary(&mut self) -> Expr {
+        if let Some(t) = self.tokens.peek().cloned() {
+            match t {
+                Token::Plus => {
+                    self.tokens.next();
+                    let expr = self.parse_primary();
+                    Expr::UnaryOp(Op::Add, Box::new(expr))
+                }
+                Token::Minus => {
+                    self.tokens.next();
+                    let expr = self.parse_primary();
+                    Expr::UnaryOp(Op::Sub, Box::new(expr))
+                }
+                _ => self.parse_primary(),
+            }
+        } else {
+            panic!("unexpected behaviour");
+        }
     }
     fn parse_primary(&mut self) -> Expr {
         if let Some(t) = self.tokens.next() {
