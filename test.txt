@@ -1,1 +1,9 @@
-exit(-5*-5);
+    let x = 10;
+    let y = 15;
+    if (x==y) {
+        exit(x);
+    } elif (x>y) {
+        exit(x-y);
+    } else {
+        exit(y-x);
+    }

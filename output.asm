@@ -8,18 +8,15 @@ global _start
 _start:
     push rbp
     mov rbp, rsp
+    sub rsp, 16
 
-    ; exit
-    mov rax, 5
-    neg rax
-    push rax
-    mov rax, 5
-    neg rax
-    pop rbx
-    imul rax, rbx
-    mov rdi, rax
-    mov rax, 60
-    syscall
+    ; let x = ...
+    mov rax, 10
+    mov [rbp-8], rax
+
+    ; let y = ...
+    mov rax, 15
+    mov [rbp-16], rax
 
 
     ; default exit

@@ -105,6 +105,7 @@ impl CodeGen {
                 self.emit_indent("syscall");
                 self.emit("");
             }
+            _ => {}
         }
     }
 
@@ -113,7 +114,7 @@ impl CodeGen {
             Expr::Num(n) => {
                 self.emit_indent(&format!("mov rax, {}", n));
             }
-            Expr::Var(name) => {
+            Expr::Ident(name) => {
                 let offset = self
                     .vars
                     .get(name)
@@ -149,6 +150,7 @@ impl CodeGen {
                         self.emit_indent("cqo");
                         self.emit_indent("idiv rbx");
                     }
+                    _ => {}
                 }
             }
             Expr::UnaryOp(op, expr) => {

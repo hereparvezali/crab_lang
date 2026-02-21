@@ -4,7 +4,7 @@ use crate::lexer::Token;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
-    Var(String),
+    Ident(String),
     Num(i32),
     BinOp(Box<Expr>, Op, Box<Expr>),
     UnaryOp(Op, Box<Expr>),
@@ -15,11 +15,18 @@ pub enum Op {
     Sub,
     Mul,
     Div,
+    Eq,
+    NotEq,
+    Gt,
+    Gte,
+    Lt,
+    Lte,
 }
 #[derive(Debug, Clone)]
 pub enum Stmt {
     Let(String, Expr),
     Exit(Expr),
+    If(Expr, Vec<Stmt>, Vec<(Expr, Vec<Stmt>)>, Option<Vec<Stmt>>),
 }
 
 pub struct Parser {
@@ -68,15 +75,75 @@ impl Parser {
                     self.expect(Token::Semicolon);
                     stmts.push(Stmt::Exit(expr));
                 }
+                Token::If => {
+                    self.tokens.next();
+                    self.expect(Token::LParen);
+                    let cond = self.parse_expr();
+                    self.expect(Token::RParen);
+                    self.expect(Token::LBrace);
+                    let block_stmts = self.parse();
+                    self.expect(Token::RBrace);
+
+                    let mut elifs = Vec::new();
+                    while let Some(_elif @ Token::Elif) = self.tokens.peek() {
+                        self.tokens.next();
+                        self.expect(Token::LParen);
+                        let elif_cond = self.parse_expr();
+                        self.expect(Token::RParen);
+
+                        self.expect(Token::LBrace);
+                        let elif_block_stmts = self.parse();
+                        self.expect(Token::RBrace);
+                        elifs.push((elif_cond, elif_block_stmts));
+                    }
+                    let mut else_block_stmts = None;
+                    if let Some(_els @ Token::Else) = self.tokens.peek() {
+                        self.tokens.next();
+                        self.expect(Token::LBrace);
+                        else_block_stmts = Some(self.parse());
+                        self.expect(Token::RBrace);
+                    }
+                    stmts.push(Stmt::If(cond, block_stmts, elifs, else_block_stmts));
+                }
+                Token::RBrace => {
+                    return stmts;
+                }
                 tok => {
                     panic!("unexpected token {:?}", tok);
                 }
             }
+            println!("{:?}", stmts);
         }
         stmts
     }
     fn parse_expr(&mut self) -> Expr {
-        self.parse_add()
+        self.parse_comparison()
+    }
+    fn parse_comparison(&mut self) -> Expr {
+        let mut left = self.parse_add();
+        while let Some(
+            t @ (Token::EqualEqual
+            | Token::NotEqual
+            | Token::Greater
+            | Token::GreaterEqual
+            | Token::Less
+            | Token::LessEqual),
+        ) = self.tokens.peek().cloned()
+        {
+            let op = match t {
+                Token::EqualEqual => Op::Eq,
+                Token::NotEqual => Op::NotEq,
+                Token::Greater => Op::Gt,
+                Token::GreaterEqual => Op::Gte,
+                Token::Less => Op::Lt,
+                Token::LessEqual => Op::Lte,
+                _ => unreachable!(),
+            };
+            self.tokens.next();
+            let right = self.parse_add();
+            left = Expr::BinOp(Box::new(left), op, Box::new(right));
+        }
+        left
     }
     fn parse_add(&mut self) -> Expr {
         let mut left = self.parse_mul();
@@ -129,7 +196,7 @@ impl Parser {
         if let Some(t) = self.tokens.next() {
             let tok = match t {
                 Token::Number(n) => Expr::Num(n),
-                Token::Ident(x) => Expr::Var(x),
+                Token::Ident(x) => Expr::Ident(x),
                 Token::LParen => {
                     let expr = self.parse_expr();
                     self.expect(Token::RParen);

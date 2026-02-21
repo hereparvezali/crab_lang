@@ -3,6 +3,9 @@ use std::{iter::Peekable, str::Chars};
 #[derive(Debug, Clone, PartialEq)]
 pub enum Token {
     Let,
+    If,
+    Elif,
+    Else,
     Exit,
     Ident(String),
     Number(i32),
@@ -13,7 +16,15 @@ pub enum Token {
     Slash,
     LParen,
     RParen,
+    LBrace,
+    RBrace,
     Semicolon,
+    EqualEqual,
+    NotEqual,
+    Greater,
+    GreaterEqual,
+    Less,
+    LessEqual,
 }
 
 pub struct Lexer<'a> {
@@ -40,6 +51,9 @@ impl<'a> Lexer<'a> {
                     tokens.push(match identifier.as_str() {
                         "let" => Token::Let,
                         "exit" => Token::Exit,
+                        "if" => Token::If,
+                        "elif" => Token::Elif,
+                        "else" => Token::Else,
                         _ => Token::Ident(identifier),
                     });
                 }
@@ -52,8 +66,43 @@ impl<'a> Lexer<'a> {
                     tokens.push(Token::Number(number));
                 }
                 '=' => {
-                    tokens.push(Token::Equal);
+                    let mut curr_token = Token::Equal;
                     self.input.next();
+                    if let Some(&c) = self.input.peek() {
+                        if c == '=' {
+                            curr_token = Token::EqualEqual;
+                            self.input.next();
+                        }
+                    }
+                    tokens.push(curr_token);
+                }
+                '>' => {
+                    let mut curr_token = Token::Greater;
+                    self.input.next();
+                    if let Some(&c) = self.input.peek() {
+                        if c == '=' {
+                            curr_token = Token::GreaterEqual;
+                        }
+                    }
+                    tokens.push(curr_token);
+                }
+                '<' => {
+                    let mut curr_token = Token::Less;
+                    self.input.next();
+                    if let Some(&c) = self.input.peek() {
+                        if c == '=' {
+                            curr_token = Token::LessEqual;
+                        }
+                    }
+                    tokens.push(curr_token);
+                }
+                '!' => {
+                    self.input.next();
+                    if self.input.peek() != Some(&'=') {
+                        panic!("Unexpected token");
+                    }
+                    self.input.next();
+                    tokens.push(Token::NotEqual);
                 }
                 '+' => {
                     tokens.push(Token::Plus);
@@ -77,6 +126,14 @@ impl<'a> Lexer<'a> {
                 }
                 ')' => {
                     tokens.push(Token::RParen);
+                    self.input.next();
+                }
+                '{' => {
+                    tokens.push(Token::LBrace);
+                    self.input.next();
+                }
+                '}' => {
+                    tokens.push(Token::RBrace);
                     self.input.next();
                 }
                 ';' => {
