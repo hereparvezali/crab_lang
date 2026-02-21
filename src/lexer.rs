@@ -3,6 +3,7 @@ use std::{iter::Peekable, str::Chars};
 #[derive(Debug, Clone, PartialEq)]
 pub enum Token {
     Let,
+    While,
     If,
     Elif,
     Else,
@@ -51,6 +52,7 @@ impl<'a> Lexer<'a> {
                     tokens.push(match identifier.as_str() {
                         "let" => Token::Let,
                         "exit" => Token::Exit,
+                        "while" => Token::While,
                         "if" => Token::If,
                         "elif" => Token::Elif,
                         "else" => Token::Else,

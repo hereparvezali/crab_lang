@@ -170,6 +170,32 @@ impl CodeGen {
                 self.emit(&format!("{}:", end_label));
                 self.emit("");
             }
+            Stmt::While(cond, body) => {
+                let start_label = self.new_label("while_start");
+                let end_label = self.new_label("while_end");
+
+                // Label for loop start
+                self.emit(&format!("{}:", start_label));
+
+                // Generate condition
+                self.emit_indent("; while condition");
+                self.gen_expr(cond);
+                self.emit_indent("cmp rax, 0");
+                self.emit_indent(&format!("je {}", end_label));
+
+                // Generate body
+                self.emit_indent("; while body");
+                for stmt in body {
+                    self.gen_stmt(stmt);
+                }
+
+                // Jump back to start
+                self.emit_indent(&format!("jmp {}", start_label));
+
+                // End label
+                self.emit(&format!("{}:", end_label));
+                self.emit("");
+            }
         }
     }
 
@@ -294,6 +320,20 @@ mod comparison_tests {
 
         assert!(asm.contains("cmp rax, rbx"));
         assert!(asm.contains("setg al"));
+    }
+
+    #[test]
+    fn test_while_loop() {
+        let source = "let x = 0; while (x < 5) { let x = x + 1; } exit(x);";
+        let tokens = Lexer::new(source).tokenize();
+        let stmts = Parser::new(tokens).parse();
+        let asm = CodeGen::new().generate(&stmts);
+
+        // Should contain while loop structure
+        assert!(asm.contains(".while_start_"));
+        assert!(asm.contains(".while_end_"));
+        assert!(asm.contains("jmp .while_start_"));
+        assert!(asm.contains("je .while_end_"));
     }
 }
 

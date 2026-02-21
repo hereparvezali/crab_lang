@@ -26,6 +26,7 @@ pub enum Op {
 pub enum Stmt {
     Let(String, Expr),
     Exit(Expr),
+    While(Expr, Vec<Stmt>),
     If(Expr, Vec<Stmt>, Vec<(Expr, Vec<Stmt>)>, Option<Vec<Stmt>>),
 }
 
@@ -74,6 +75,16 @@ impl Parser {
                     self.expect(Token::RParen);
                     self.expect(Token::Semicolon);
                     stmts.push(Stmt::Exit(expr));
+                }
+                Token::While => {
+                    self.tokens.next();
+                    self.expect(Token::LParen);
+                    let cond = self.parse_expr();
+                    self.expect(Token::RParen);
+                    self.expect(Token::LBrace);
+                    let block_stmts = self.parse();
+                    self.expect(Token::RBrace);
+                    stmts.push(Stmt::While(cond, block_stmts));
                 }
                 Token::If => {
                     self.tokens.next();
