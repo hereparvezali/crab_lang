@@ -6,6 +6,7 @@ pub struct CodeGen {
     output: String,
     vars: HashMap<String, i64>,
     stack_offset: i64,
+    label_counter: usize,
 }
 
 impl CodeGen {
@@ -14,7 +15,14 @@ impl CodeGen {
             output: String::new(),
             vars: HashMap::new(),
             stack_offset: 0,
+            label_counter: 0,
         }
+    }
+
+    fn new_label(&mut self, prefix: &str) -> String {
+        let label = format!(".{}_{}", prefix, self.label_counter);
+        self.label_counter += 1;
+        label
     }
 
     fn emit(&mut self, line: &str) {
@@ -105,7 +113,63 @@ impl CodeGen {
                 self.emit_indent("syscall");
                 self.emit("");
             }
-            _ => {}
+            Stmt::If(cond, then_body, elif_branches, else_body) => {
+                let end_label = self.new_label("if_end");
+
+                // Generate condition for if
+                self.emit_indent("; if condition");
+                self.gen_expr(cond);
+                self.emit_indent("cmp rax, 0");
+
+                if elif_branches.is_empty() && else_body.is_none() {
+                    // Simple if without elif or else
+                    self.emit_indent(&format!("je {}", end_label));
+                    self.emit_indent("; then block");
+                    for stmt in then_body {
+                        self.gen_stmt(stmt);
+                    }
+                } else {
+                    // If with elif and/or else branches
+                    let mut next_label = self.new_label("elif");
+                    self.emit_indent(&format!("je {}", next_label));
+
+                    // Then block
+                    self.emit_indent("; then block");
+                    for stmt in then_body {
+                        self.gen_stmt(stmt);
+                    }
+                    self.emit_indent(&format!("jmp {}", end_label));
+
+                    // Elif branches
+                    for (elif_cond, elif_body) in elif_branches {
+                        self.emit(&format!("{}:", next_label));
+                        next_label = self.new_label("elif");
+
+                        self.emit_indent("; elif condition");
+                        self.gen_expr(elif_cond);
+                        self.emit_indent("cmp rax, 0");
+                        self.emit_indent(&format!("je {}", next_label));
+
+                        self.emit_indent("; elif block");
+                        for stmt in elif_body {
+                            self.gen_stmt(stmt);
+                        }
+                        self.emit_indent(&format!("jmp {}", end_label));
+                    }
+
+                    // Else branch (or final label)
+                    self.emit(&format!("{}:", next_label));
+                    if let Some(else_stmts) = else_body {
+                        self.emit_indent("; else block");
+                        for stmt in else_stmts {
+                            self.gen_stmt(stmt);
+                        }
+                    }
+                }
+
+                self.emit(&format!("{}:", end_label));
+                self.emit("");
+            }
         }
     }
 
@@ -150,7 +214,36 @@ impl CodeGen {
                         self.emit_indent("cqo");
                         self.emit_indent("idiv rbx");
                     }
-                    _ => {}
+                    Op::Eq => {
+                        self.emit_indent("cmp rax, rbx");
+                        self.emit_indent("sete al");
+                        self.emit_indent("movzx rax, al");
+                    }
+                    Op::NotEq => {
+                        self.emit_indent("cmp rax, rbx");
+                        self.emit_indent("setne al");
+                        self.emit_indent("movzx rax, al");
+                    }
+                    Op::Gt => {
+                        self.emit_indent("cmp rax, rbx");
+                        self.emit_indent("setg al");
+                        self.emit_indent("movzx rax, al");
+                    }
+                    Op::Gte => {
+                        self.emit_indent("cmp rax, rbx");
+                        self.emit_indent("setge al");
+                        self.emit_indent("movzx rax, al");
+                    }
+                    Op::Lt => {
+                        self.emit_indent("cmp rax, rbx");
+                        self.emit_indent("setl al");
+                        self.emit_indent("movzx rax, al");
+                    }
+                    Op::Lte => {
+                        self.emit_indent("cmp rax, rbx");
+                        self.emit_indent("setle al");
+                        self.emit_indent("movzx rax, al");
+                    }
                 }
             }
             Expr::UnaryOp(op, expr) => {
@@ -171,6 +264,36 @@ impl CodeGen {
 impl Default for CodeGen {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod comparison_tests {
+    use super::*;
+    use crate::lexer::Lexer;
+    use crate::parser::Parser;
+
+    #[test]
+    fn test_comparison_eq() {
+        let source = "let x = 5 == 5; exit(x);";
+        let tokens = Lexer::new(source).tokenize();
+        let stmts = Parser::new(tokens).parse();
+        let asm = CodeGen::new().generate(&stmts);
+
+        assert!(asm.contains("cmp rax, rbx"));
+        assert!(asm.contains("sete al"));
+        assert!(asm.contains("movzx rax, al"));
+    }
+
+    #[test]
+    fn test_comparison_gt() {
+        let source = "let x = 10 > 5; exit(x);";
+        let tokens = Lexer::new(source).tokenize();
+        let stmts = Parser::new(tokens).parse();
+        let asm = CodeGen::new().generate(&stmts);
+
+        assert!(asm.contains("cmp rax, rbx"));
+        assert!(asm.contains("setg al"));
     }
 }
 
